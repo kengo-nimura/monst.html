@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>モンスト風反射シミュレータ</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; position: fixed; width: 100%; height: 100%; }
+        canvas { display: block; background: #333; }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 画面サイズ設定
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// キャラクター設定
+const ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    vx: 0,
+    vy: 0,
+    radius: 20,
+    friction: 0.98, // 減速（摩擦）
+    isMoving: false
+};
+
+// ドラッグ操作用
+let startX, startY, currentX, currentY, isDragging = false;
+
+// タッチイベント
+canvas.addEventListener('touchstart', (e) => {
+    if (ball.isMoving) return;
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    currentX = startX;
+    currentY = startY;
+    isDragging = true;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    currentX = touch.clientX;
+    currentY = touch.clientY;
+    e.preventDefault(); // スクロール禁止
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    // 引っ張ったベクトルと逆に飛ばす
+    ball.vx = (startX - currentX) * 0.15;
+    ball.vy = (startY - currentY) * 0.15;
+    ball.isMoving = true;
+    isDragging = false;
+});
+
+function update() {
+    if (ball.isMoving) {
+        // 移動
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // 壁反射（左右）
+        if (ball.x < ball.radius || ball.x > canvas.width - ball.radius) {
+            ball.vx *= -1;
+            ball.x = ball.x < ball.radius ? ball.radius : canvas.width - ball.radius;
+        }
+        // 壁反射（上下）
+        if (ball.y < ball.radius || ball.y > canvas.height - ball.radius) {
+            ball.vy *= -1;
+            ball.y = ball.y < ball.radius ? ball.radius : canvas.height - ball.radius;
+        }
+
+        // 減速
+        ball.vx *= ball.friction;
+        ball.vy *= ball.friction;
+
+        // 停止判定
+        if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1) {
+            ball.vx = 0;
+            ball.vy = 0;
+            ball.isMoving = false;
+        }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 引っ張り線の描画
+    if (isDragging) {
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(ball.x + (startX - currentX), ball.y + (startY - currentY));
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // キャラの描画
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fillStyle = ball.isMoving ? "#ff4444" : "#44ff44";
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.closePath();
+}
+
+update();
+</script>
+</body>
+</html>
